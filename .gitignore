@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+*.egg
+
+# Données générées
+*.db
+translation_cache.db
+stats_history.db
+projet_sauvegarde.json
+
+# Caches et checkpoints (volumineux)
+extraction_cache/
+checkpoints/
+
+# PDFs sources et traduits (trop volumineux pour Git)
+pdfs_originaux/
+pdfs_traduits/
+
+# Anciennes versions
+archive/
+
+# Profils utilisateur
+profiles/
+
+# Environnement
+.claude/
+.venv/
+venv/
+*.swp
+*.swo
+*~
+
+# RPM
+*.rpm
+
+# Idées / notes
+idees.md

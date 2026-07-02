@@ -1,0 +1,22 @@
+# Dépendances du Traducteur PDF v8
+pdfplumber
+deep_translator
+reportlab
+pypdf
+
+# Stats (sqlite3 est inclus avec Python)
+# Thèmes intégrés (aucune dépendance supplémentaire)
+
+# Traduction hors ligne Argos Translate (optionnel - Feature offline v3)
+# argostranslate
+
+# Correction orthographique (optionnel - Feature 8)
+# language-tool-python
+
+# Export DOCX (optionnel - Feature 9)
+# python-docx
+
+# tkinter est inclus avec Python
+# Sous Fedora/Nobara : sudo dnf install python3-tkinter
+
+# Packaging optionnel : pyinstaller
