@@ -6,11 +6,25 @@ __pycache__/
 .pytest_cache/
 *.egg
 
+# Environnement
+.claude/
+.opencode/
+.specify/
+.venv/
+venv/
+*.swp
+*.swo
+*~
+
 # Données générées
 *.db
 translation_cache.db
 stats_history.db
 projet_sauvegarde.json
+projet_traduction.json
+
+# Modèles ML (volumineux)
+models/
 
 # Caches et checkpoints (volumineux)
 extraction_cache/
@@ -26,16 +40,22 @@ archive/
 # Profils utilisateur
 profiles/
 
-# Environnement
-.claude/
-.venv/
-venv/
-*.swp
-*.swo
-*~
-
 # RPM
 *.rpm
 
 # Idées / notes
 idees.md
+models/
+pdfs_traduits.zip
+models/
+pdfs_traduits.zip
+
+# EPUB générés et cache incrémental
+epubs/
+.epub_build/
+
+# Environnements locaux et sauvegardes
+venvargos/
+app_gui.py.backup_*
+data/
+glossary_db.json

@@ -64,18 +64,22 @@ class ConfigMoteur:
     langue_cible: str = "fr"
 
     # Performance
-    taille_bloc: int = 4800
-    nb_threads_trad: int = 50
-    nb_threads_pdf: int = 5
-    rate_limit: int = 50
-    max_retries: int = 5
-    backoff_cap: int = 30
-    pace_min: float = 0.05
-    pace_max: float = 0.15
+    taille_bloc: int = 2000
+    nb_threads_trad: int = 3
+    nb_threads_pdf: int = 2
+    rate_limit: int = 3
+    max_retries: int = 15
+    backoff_cap: int = 120
+    backoff_base_google: float = 5.0
+    seuil_pause_longue: int = 5
+    pause_longue_sec: float = 90.0
+    pace_min: float = 1.0
+    pace_max: float = 2.0
 
     # Fonctionnalités
     ignorer_deja_traduits: bool = True
     mode_offline: bool = False
+    mode_nllb: bool = False
     format_export: str = "pdf"
     preserver_images: bool = False
     correction_ortho: bool = False
@@ -132,10 +136,14 @@ class ConfigMoteur:
             "RATE_LIMIT": self.rate_limit,
             "MAX_RETRIES": self.max_retries,
             "BACKOFF_CAP": self.backoff_cap,
+            "BACKOFF_BASE_GOOGLE": self.backoff_base_google,
+            "SEUIL_PAUSE_LONGUE": self.seuil_pause_longue,
+            "PAUSE_LONGUE_SEC": self.pause_longue_sec,
             "PACE_MIN": self.pace_min,
             "PACE_MAX": self.pace_max,
             "IGNORER_DEJA_TRADUITS": self.ignorer_deja_traduits,
             "MODE_OFFLINE": self.mode_offline,
+            "MODE_NLLB": self.mode_nllb,
             "FORMAT_EXPORT": self.format_export,
             "PRESERVER_IMAGES": self.preserver_images,
             "CORRECTION_ORTHO": self.correction_ortho,
@@ -173,6 +181,7 @@ total_tasks: int = 0
 futures_pdf: list[Any] = []
 executor_pdf: Optional[ThreadPoolExecutor] = None
 _current_progress: str = ""
+temps_debut: float = 0.0
 
 # Compteurs stats
 blocs_echoues: int = 0
@@ -208,6 +217,7 @@ def configurer(config_dict: Optional[dict[str, Any]] = None) -> None:
     from threading import Semaphore
     globals()["ANNULER"] = False
     globals()["HORS_LIGNE"] = False
+    globals()["temps_debut"] = time.time()
     blocs_echoues = 0
     blocs_caches = 0
     proxy_index = 0

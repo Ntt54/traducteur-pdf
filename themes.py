@@ -1,27 +1,71 @@
 #!/usr/bin/env python3
 """
-=============================================================
+============================================================
   THEMES — Système de thèmes multiples (Feature 11)
-  Palette sombre classique + variantes
-=============================================================
+  Palettes sombre premium + variantes
+============================================================
 """
 
 THEMES = {
+    "Midnight": {
+        "bg": "#0D0F14",
+        "card": "#14171D",
+        "card2": "#1C2029",
+        "fg": "#E8ECF1",
+        "muted": "#6B7280",
+        "accent": "#7C8CDE",
+        "accent_h": "#6366F1",
+        "green": "#34D399",
+        "green_h": "#10B981",
+        "red": "#F87171",
+        "red_h": "#EF4444",
+        "blue": "#60A5FA",
+        "orange": "#FB923C",
+        "yellow": "#FBBF24",
+        "input": "#1A1E26",
+        "log_bg": "#0A0C10",
+        "font": "Noto Sans",
+        "name": "Midnight",
+    },
     "Dark Orange": {
-        "bg": "#0A0A0A",
-        "card": "#1A1A1A",
-        "card2": "#2A2A2A",
-        "fg": "#F5F5F5",
-        "muted": "#9CA3AF",
+        "bg": "#0E0C0A",
+        "card": "#161410",
+        "card2": "#222018",
+        "fg": "#F0EDE8",
+        "muted": "#8A8578",
         "accent": "#F97316",
         "accent_h": "#EA580C",
         "green": "#22C55E",
         "green_h": "#16A34A",
         "red": "#EF4444",
         "red_h": "#DC2626",
+        "blue": "#3B82F6",
+        "orange": "#F97316",
         "yellow": "#FBBF24",
-        "log_bg": "#111111",
+        "input": "#1C1A15",
+        "log_bg": "#0A0908",
+        "font": "Noto Sans",
         "name": "Dark Orange",
+    },
+    "Obsidian": {
+        "bg": "#0A0A0F",
+        "card": "#12121A",
+        "card2": "#1A1A24",
+        "fg": "#E4E4EC",
+        "muted": "#6E6E80",
+        "accent": "#A78BFA",
+        "accent_h": "#8B5CF6",
+        "green": "#34D399",
+        "green_h": "#10B981",
+        "red": "#F87171",
+        "red_h": "#EF4444",
+        "blue": "#60A5FA",
+        "orange": "#FB923C",
+        "yellow": "#FBBF24",
+        "input": "#16161E",
+        "log_bg": "#08080D",
+        "font": "Noto Sans",
+        "name": "Obsidian",
     },
     "Catppuccin Mocha": {
         "bg": "#1e1e2e",
@@ -35,8 +79,12 @@ THEMES = {
         "green_h": "#94d68f",
         "red": "#f38ba8",
         "red_h": "#e8798f",
+        "blue": "#89b4fa",
+        "orange": "#fab387",
         "yellow": "#f9e2af",
+        "input": "#38384d",
         "log_bg": "#181825",
+        "font": "Noto Sans",
         "name": "Catppuccin Mocha",
     },
     "Catppuccin Latte": {
@@ -51,8 +99,12 @@ THEMES = {
         "green_h": "#368a22",
         "red": "#d20f39",
         "red_h": "#b80e32",
+        "blue": "#1e66f5",
+        "orange": "#fe640b",
         "yellow": "#df8e1d",
+        "input": "#d0d4dd",
         "log_bg": "#dce0e8",
+        "font": "Noto Sans",
         "name": "Catppuccin Latte",
     },
     "Dracula": {
@@ -67,8 +119,12 @@ THEMES = {
         "green_h": "#3ee66b",
         "red": "#ff5555",
         "red_h": "#ee3333",
+        "blue": "#6272a4",
+        "orange": "#ffb86c",
         "yellow": "#f1fa8c",
+        "input": "#3b3d51",
         "log_bg": "#21222c",
+        "font": "Noto Sans",
         "name": "Dracula",
     },
     "Nord": {
@@ -83,8 +139,12 @@ THEMES = {
         "green_h": "#8fae78",
         "red": "#bf616a",
         "red_h": "#ab4f58",
+        "blue": "#81a1c1",
+        "orange": "#d08770",
         "yellow": "#ebcb8b",
+        "input": "#373e4d",
         "log_bg": "#242932",
+        "font": "Noto Sans",
         "name": "Nord",
     },
     "Gruvbox Dark": {
@@ -99,8 +159,12 @@ THEMES = {
         "green_h": "#a2aa20",
         "red": "#fb4934",
         "red_h": "#e63a26",
+        "blue": "#458588",
+        "orange": "#d65d0e",
         "yellow": "#fabd2f",
+        "input": "#46403d",
         "log_bg": "#1d2021",
+        "font": "Noto Sans",
         "name": "Gruvbox Dark",
     },
     "Gruvbox Light": {
@@ -115,14 +179,18 @@ THEMES = {
         "green_h": "#7f7e14",
         "red": "#cc241d",
         "red_h": "#ae1e18",
+        "blue": "#076678",
+        "orange": "#d65d0e",
         "yellow": "#d79921",
+        "input": "#d0bb8f",
         "log_bg": "#f2e5bc",
+        "font": "Noto Sans",
         "name": "Gruvbox Light",
     },
 }
 
 THEME_NAMES = list(THEMES.keys())
-DEFAULT_THEME = "Dark Orange"
+DEFAULT_THEME = "Midnight"
 _ACTIVE_THEME = None
 
 def get(name=None):

@@ -70,6 +70,7 @@ Icon=${ICON_DIR}/traducteur-pdf.png
 Terminal=false
 Categories=Office;Utility;
 StartupNotify=true
+StartupWMClass=TraducteurPDF
 MimeType=application/pdf;
 DESK
 

@@ -18,10 +18,10 @@ def test_default_config():
     assert config.langue_source == "en"
     assert config.langue_cible == "fr"
     assert config.format_export == "pdf"
-    assert config.nb_threads_trad == 50
-    assert config.nb_threads_pdf == 5
-    assert config.taille_bloc == 4800
-    assert config.rate_limit == 50
+    assert config.nb_threads_trad == 3
+    assert config.nb_threads_pdf == 2
+    assert config.taille_bloc == 2000
+    assert config.rate_limit == 3
     assert config.dossier_source == "./pdfs_originaux"
     assert config.dossier_sortie == "./pdfs_traduits"
 

@@ -121,8 +121,11 @@ def charger_cache_extraction(nom_base: str) -> Optional[list[str]]:
     """Charge le texte extrait depuis le cache."""
     chemin = chemin_cache_extraction(nom_base)
     if os.path.exists(chemin):
-        with open(chemin, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(chemin, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
     return None
 
 

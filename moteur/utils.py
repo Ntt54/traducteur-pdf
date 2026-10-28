@@ -9,9 +9,13 @@ import os
 import sys
 import json
 import re
+import time
+import hashlib
 from typing import Optional, Callable
 
 from . import config as cfg
+
+CHECKPOINT_VERSION = 2
 
 
 # ─────────────────────────────────────────────
@@ -88,25 +92,74 @@ def chemin_checkpoint(nom_fichier: str) -> str:
     return cp
 
 
+def hash_texte(texte: str) -> str:
+    """Empreinte courte d'un texte, utilisée pour détecter un non-changement."""
+    return hashlib.sha1((texte or "").strip().encode("utf-8")).hexdigest()[:16]
+
+
 def charger_checkpoint(nom_fichier: str) -> tuple[dict, int]:
     """Charge l'état de traduction sauvegardé pour un fichier."""
     cp = chemin_checkpoint(nom_fichier)
     if os.path.exists(cp):
-        with open(cp, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(cp, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}, 0
         return data.get("pages_traduites", {}), data.get("total_pages", 0)
     return {}, 0
 
 
-def sauvegarder_checkpoint(nom_fichier: str, pages_traduites: dict, total_pages: int) -> None:
-    """Sauvegarde l'état de traduction pour reprise d'interruption."""
+def charger_metadonnees_checkpoint(nom_fichier: str) -> dict:
+    """Charge les métadonnées d'un checkpoint (version, langue vérifiée, hashes)."""
+    cp = chemin_checkpoint(nom_fichier)
+    if not os.path.exists(cp):
+        return {}
+    try:
+        with open(cp, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return {
+        "version": data.get("version", 1),
+        "langue_verifiee": data.get("langue_verifiee", False),
+        "langue_cible": data.get("langue_cible", ""),
+        "hash_original": data.get("hash_original", {}),
+        "maj": data.get("maj", 0),
+    }
+
+
+def sauvegarder_checkpoint(
+    nom_fichier: str,
+    pages_traduites: dict,
+    total_pages: int,
+    hash_original: Optional[dict] = None,
+    langue_verifiee: bool = False,
+) -> None:
+    """Sauvegarde l'état de traduction pour reprise d'interruption.
+
+    Les métadonnées ``hash_original`` et ``langue_verifiee`` permettent
+    de détecter un checkpoint corrompu (pages restées dans la langue source)
+    avant tout export.
+    """
+    conf = cfg.get_config()
     with cfg.checkpoint_lock:
         cp = chemin_checkpoint(nom_fichier)
-        with open(cp, "w", encoding="utf-8") as f:
+        tmp = cp + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(
-                {"pages_traduites": pages_traduites, "total_pages": total_pages},
+                {
+                    "version": CHECKPOINT_VERSION,
+                    "pages_traduites": pages_traduites,
+                    "total_pages": total_pages,
+                    "hash_original": hash_original or {},
+                    "langue_verifiee": langue_verifiee,
+                    "langue_cible": conf.langue_cible,
+                    "maj": time.time(),
+                },
                 f, ensure_ascii=False
             )
+        os.replace(tmp, cp)
 
 
 def supprimer_checkpoint(nom_fichier: str) -> None:

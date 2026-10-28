@@ -4,6 +4,7 @@ Tests unitaires pour les helpers d'export (nom de sortie, taille de page).
 Ces tests ne génèrent aucun fichier.
 """
 
+import pytest
 from traduire_pdfs_v2 import _nom_sortie
 from moteur.config import configurer, get_config, STYLES_PDF_PAR_DEFAUT
 from moteur.exportateur import _get_page_size
@@ -11,41 +12,47 @@ from reportlab.lib.pagesizes import A4, letter
 
 
 # ─────────────────────────────────────────────
+#   FIXTURE : isolation de la config globale
+# ─────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def reset_config():
+    """Remet la config dans un état par défaut connu avant et après chaque test."""
+    # Sauvegarder l'état original
+    original = get_config().__dict__.copy()
+    # Config par défaut pour les tests
+    configurer({"LANGUE_CIBLE": "fr", "MODE_OFFLINE": False})
+    yield
+    # Restaurer l'état original
+    configurer(original)
+
+
+# ─────────────────────────────────────────────
 #   NOM DE FICHIER DE SORTIE
 # ─────────────────────────────────────────────
 
-def _reset_config():
-    """Remet la config dans un état par défaut connu."""
-    configurer({"LANGUE_CIBLE": "fr"})
-
-
 def test_nom_sortie_pdf():
     """_nom_sortie('doc.pdf', 'pdf') → 'doc_traduit_fr.pdf'."""
-    _reset_config()
     assert _nom_sortie("doc.pdf", "pdf") == "doc_traduit_fr.pdf"
 
 
 def test_nom_sortie_txt():
     """_nom_sortie('doc.pdf', 'txt') → 'doc_traduit_fr.txt'."""
-    _reset_config()
     assert _nom_sortie("doc.pdf", "txt") == "doc_traduit_fr.txt"
 
 
 def test_nom_sortie_md():
     """_nom_sortie('doc.pdf', 'md') → 'doc_traduit_fr.md'."""
-    _reset_config()
     assert _nom_sortie("doc.pdf", "md") == "doc_traduit_fr.md"
 
 
 def test_nom_sortie_docx():
     """_nom_sortie('doc.pdf', 'docx') → 'doc_traduit_fr.docx'."""
-    _reset_config()
     assert _nom_sortie("doc.pdf", "docx") == "doc_traduit_fr.docx"
 
 
 def test_nom_sortie_with_path():
     """_nom_sortie doit fonctionner avec un chemin relatif."""
-    _reset_config()
     result = _nom_sortie("sous-dossier/rapport.pdf", "pdf")
     assert result == "sous-dossier/rapport_traduit_fr.pdf"
 
@@ -54,6 +61,19 @@ def test_nom_sortie_langue_cible():
     """Le suffixe de langue doit correspondre à langue_cible configurée."""
     configurer({"LANGUE_CIBLE": "de"})
     assert _nom_sortie("doc.pdf", "pdf") == "doc_traduit_de.pdf"
+
+
+def test_nom_sortie_mode_offline():
+    """En mode offline, le nom doit inclure '_argos'."""
+    configurer({"MODE_OFFLINE": True, "LANGUE_CIBLE": "fr"})
+    assert _nom_sortie("doc.pdf", "pdf") == "doc_traduit_fr_argos.pdf"
+    assert _nom_sortie("sous-dossier/roman.pdf", "pdf") == "sous-dossier/roman_traduit_fr_argos.pdf"
+
+
+def test_nom_sortie_mode_en_ligne():
+    """En mode en ligne, PAS de suffixe _argos."""
+    configurer({"MODE_OFFLINE": False, "LANGUE_CIBLE": "fr"})
+    assert _nom_sortie("doc.pdf", "pdf") == "doc_traduit_fr.pdf"
 
 
 # ─────────────────────────────────────────────

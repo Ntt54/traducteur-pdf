@@ -36,7 +36,7 @@ from moteur.config import (
 from moteur.utils import (
     log_dynamique, log_fixe, tri_naturel,
     charger_police, charger_checkpoint, sauvegarder_checkpoint,
-    supprimer_checkpoint,
+    supprimer_checkpoint, charger_metadonnees_checkpoint, hash_texte,
 )
 from moteur.extracteur import (
     extraire_texte_pdf, nettoyer_texte,
@@ -45,10 +45,11 @@ from moteur.extracteur import (
 from moteur.traducteur import (
     cache_get, cache_put, init_cache,
     decouper_blocs, traduire_bloc, worker_traduction,
-    internet_disponible, HorsLigneError,
+    internet_disponible, HorsLigneError, TraductionEchoueeError,
     get_next_proxy,
     argos_disponible, modele_offline_installe, init_modele_offline,
 )
+from moteur.revision import texte_est_francais
 from moteur.exportateur import (
     exporter_document, fusionner_pdfs,
 )
@@ -72,6 +73,7 @@ RATE_LIMIT = 50
 FORMAT_EXPORT = "pdf"
 CORRECTION_ORTHO = False
 MODE_OFFLINE = False
+MODE_NLLB = False
 PROXIES = []
 MERGE_ENABLED = False
 MERGE_OUTPUT = ""
@@ -101,6 +103,7 @@ def _sync_globals() -> None:
         "FORMAT_EXPORT": c.format_export,
         "CORRECTION_ORTHO": c.correction_ortho,
         "MODE_OFFLINE": c.mode_offline,
+        "MODE_NLLB": c.mode_nllb,
         "PROXIES": c.proxies,
         "MERGE_ENABLED": c.merge_enabled,
         "MERGE_OUTPUT": c.merge_output,
@@ -124,7 +127,8 @@ def _nom_sortie(fichier: str, fmt: str) -> str:
         ext = ".md"
     elif fmt == "docx":
         ext = ".docx"
-    return nom_base + f"_traduit_{conf.langue_cible}{ext}"
+    suffixe = "_argos" if conf.mode_offline else ("_nllb" if conf.mode_nllb else "")
+    return nom_base + f"_traduit_{conf.langue_cible}{suffixe}{ext}"
 
 
 # ─────────────────────────────────────────────
@@ -137,6 +141,8 @@ def traiter_tous() -> None:
            ANNULER, HORS_LIGNE, blocs_echoues, blocs_caches
     conf = get_config()
     _sync_globals()
+    ANNULER = False
+    HORS_LIGNE = False
 
     os.makedirs(conf.dossier_source, exist_ok=True)
     os.makedirs(conf.dossier_sortie, exist_ok=True)
@@ -165,10 +171,15 @@ def traiter_tous() -> None:
             return
 
     print(f"\n{'='*80}")
-    mode_label = "HORS LIGNE (Argos)" if conf.mode_offline else "EN LIGNE (Google)"
-    print(f"  TRADUCTEUR PDF v8 — PIPELINE {'OFFLINE' if conf.mode_offline else 'AVANC\u00c9'}")
+    if conf.mode_nllb:
+        mode_label = "HORS LIGNE (NLLB-200)"
+    elif conf.mode_offline:
+        mode_label = "HORS LIGNE (Argos)"
+    else:
+        mode_label = "EN LIGNE (Google)"
+    print(f"  TRADUCTEUR PDF v8 — PIPELINE {'NLLB' if conf.mode_nllb else ('OFFLINE' if conf.mode_offline else 'AVANC\u00c9')}")
     print(f"  {conf.langue_source.upper()} -> {conf.langue_cible.upper()} | Mode: {mode_label} | Export: {conf.format_export.upper()}")
-    if conf.mode_offline:
+    if conf.mode_offline or conf.mode_nllb:
         print(f"  Offline — aucune connexion réseau nécessaire")
     print(f"  Threads: {conf.nb_threads_trad} | Taille bloc: {conf.taille_bloc}" + (f" | Proxies: {len(conf.proxies)}" if not conf.mode_offline else ""))
     if conf.correction_ortho:
@@ -184,11 +195,12 @@ def traiter_tous() -> None:
     globals()["futures_pdf"] = []
 
     executor = ThreadPoolExecutor(max_workers=conf.nb_threads_pdf)
-    globals()["executor_pdf"] = executor
+    _config.executor_pdf = executor  # Source unique de vérité pour l'executor PDF
 
-    if conf.mode_offline:
+    if conf.mode_offline or conf.mode_nllb:
         translators = [None] * conf.nb_threads_trad
-        log_fixe(f"\U0001f4e1 {conf.nb_threads_trad} threads traducteurs (offline) lanc\u00e9s.")
+        label = "offline NLLB" if conf.mode_nllb else "offline"
+        log_fixe(f"\U0001f4e1 {conf.nb_threads_trad} threads traducteurs ({label}) lanc\u00e9s.")
     else:
         translators = [GoogleTranslator(source=conf.langue_source, target=conf.langue_cible)
                        for _ in range(conf.nb_threads_trad)]
@@ -234,6 +246,35 @@ def traiter_tous() -> None:
 
         total_p = len(pages_texte)
         pages_traduites, _ = charger_checkpoint(nom_base)
+        meta_cp = charger_metadonnees_checkpoint(nom_base)
+        hashes_cp = meta_cp.get("hash_original", {})
+
+        # Anti-corruption : ne conserver que les pages réellement traduites.
+        # Rejet si (a) la page n'est pas en français, ou (b) elle est identique
+        # au texte source (hash), signe d'un fallback silencieux.
+        if pages_traduites:
+            pages_valides = {}
+            for k, v in pages_traduites.items():
+                if not v.strip() or not texte_est_francais(v):
+                    continue
+                try:
+                    source = pages_texte[int(k)]
+                except (ValueError, IndexError):
+                    source = ""
+                if source.strip() and hash_texte(v) == hash_texte(source):
+                    continue
+                attendu = hashes_cp.get(k)
+                if attendu and source.strip() and attendu != hash_texte(source):
+                    # Le PDF source a changé depuis le checkpoint → retraduire.
+                    continue
+                pages_valides[k] = v
+            if len(pages_valides) != len(pages_traduites):
+                log_fixe(
+                    f" \u26a0\ufe0f {len(pages_traduites) - len(pages_valides)} page(s) invalide(s) "
+                    f"retir\u00e9e(s) du checkpoint ({nom_base}) \u2014 retraduction."
+                )
+                pages_traduites = pages_valides
+
         deja_faites = set(int(k) for k in pages_traduites.keys())
 
         with _config.data_lock:
@@ -241,22 +282,50 @@ def traiter_tous() -> None:
                 "sortie": sortie,
                 "total_pages": total_p,
                 "pages_traduites": pages_traduites,
+                "hash_original": {
+                    k: hash_texte(pages_texte[int(k)])
+                    for k in pages_traduites
+                    if int(k) < total_p
+                },
                 "compteur_local": len(deja_faites),
                 "deja_exporte": False,
             }
 
         if len(deja_faites) == total_p and total_p > 0:
-            log_fixe(f" \U0001f4be [D\u00e9j\u00e0 Fait] G\u00e9n\u00e9ration : {nom_base}")
-            futures_pdf.append(
-                executor.submit(
-                    exporter_document, pages_traduites, total_p, sortie,
-                    police, police_bold, nom_base,
-                )
+            # Vérification anti-corruption : le checkpoint doit être en français.
+            texte_cp = "\n\n".join(
+                pages_traduites.get(str(i), "")
+                for i in range(total_p)
             )
-            supprimer_checkpoint(nom_base)
-            fichiers_data[nom_base]["deja_exporte"] = True
-            fichiers_extraits += 1
-            continue
+            texte_src = "\n\n".join(pages_texte[:total_p])
+            corrompu = (
+                not texte_cp.strip()
+                or not texte_est_francais(texte_cp)
+                or hash_texte(texte_cp) == hash_texte(texte_src)
+            )
+            if corrompu:
+                log_fixe(
+                    f" \u26a0\ufe0f Checkpoint invalide ({nom_base}) \u2014 retraduction compl\u00e8te."
+                )
+                supprimer_checkpoint(nom_base)
+                pages_traduites = {}
+                deja_faites = set()
+                with _config.data_lock:
+                    fichiers_data[nom_base]["pages_traduites"] = {}
+                    fichiers_data[nom_base]["hash_original"] = {}
+                    fichiers_data[nom_base]["compteur_local"] = 0
+            else:
+                log_fixe(f" \U0001f4be [D\u00e9j\u00e0 Fait] G\u00e9n\u00e9ration : {nom_base}")
+                futures_pdf.append(
+                    executor.submit(
+                        exporter_document, pages_traduites, total_p, sortie,
+                        police, police_bold, nom_base,
+                    )
+                )
+                supprimer_checkpoint(nom_base)
+                fichiers_data[nom_base]["deja_exporte"] = True
+                fichiers_extraits += 1
+                continue
 
         for i in range(total_p):
             if i not in deja_faites:
@@ -274,7 +343,10 @@ def traiter_tous() -> None:
     for t in threads:
         t.join(timeout=1)
     for f in futures_pdf:
-        f.result()
+        try:
+            f.result()
+        except Exception as e:
+            log_fixe(f" \u274c Erreur d'export ({f}) : {e}")
     executor.shutdown(wait=True)
 
     # Fusion finale si demandée
@@ -315,8 +387,19 @@ def lancer(config: dict | None = None,
     if config:
         configurer(config)
         _sync_globals()
+    global ANNULER, HORS_LIGNE
+    ANNULER = False
+    HORS_LIGNE = False
     conf = get_config()
-    if conf.mode_offline:
+    if conf.mode_nllb:
+        from moteur.nllb import init_modele_nllb
+        msg = init_modele_nllb(on_log)
+        if "introuvable" in msg or "non installés" in msg or "Échec" in msg:
+            if on_log:
+                on_log(msg)
+            print(msg)
+            return
+    elif conf.mode_offline:
         if not argos_disponible():
             msg = "argostranslate n'est pas installé. pip install argostranslate"
             if on_log:
@@ -324,8 +407,8 @@ def lancer(config: dict | None = None,
             print(msg)
             return
         init_modele_offline(conf.langue_source, conf.langue_cible, on_log)
-    globals()["PROGRESS_CALLBACK"] = on_progress
-    globals()["LOG_CALLBACK"] = on_log
+    _config.PROGRESS_CALLBACK = on_progress
+    _config.LOG_CALLBACK = on_log
     traiter_tous()
 
 
@@ -335,8 +418,11 @@ def extraire_seulement(config: dict | None = None,
     if config:
         configurer(config)
         _sync_globals()
-    globals()["PROGRESS_CALLBACK"] = on_progress
-    globals()["LOG_CALLBACK"] = on_log
+    global ANNULER, HORS_LIGNE
+    ANNULER = False
+    HORS_LIGNE = False
+    _config.PROGRESS_CALLBACK = on_progress
+    _config.LOG_CALLBACK = on_log
 
     conf = get_config()
     os.makedirs(conf.dossier_source, exist_ok=True)

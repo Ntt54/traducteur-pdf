@@ -4,11 +4,20 @@ deep_translator
 reportlab
 pypdf
 
+# Support EPUB (Feature 12 — Traduction directe des .epub)
+ebooklib
+beautifulsoup4
+
 # Stats (sqlite3 est inclus avec Python)
 # Thèmes intégrés (aucune dépendance supplémentaire)
 
 # Traduction hors ligne Argos Translate (optionnel - Feature offline v3)
 # argostranslate
+
+# Traduction hors ligne NLLB-200 (optionnel - backend "_nllb", CPU)
+# Modèle attendu dans models/nllb-200-distilled-600M-int8/
+# ctranslate2
+# sentencepiece
 
 # Correction orthographique (optionnel - Feature 8)
 # language-tool-python
@@ -20,3 +29,15 @@ pypdf
 # Sous Fedora/Nobara : sudo dnf install python3-tkinter
 
 # Packaging optionnel : pyinstaller
+
+# Webtoon / Manga — OCR et conversion PDF → image
+# (nécessite tesseract-ocr + langpack sur le système)
+# sudo dnf install tesseract tesseract-langpack-fra
+pytesseract
+pdf2image
+
+# Dépendances système requises pour les fonctionnalités optionnelles :
+# - pytesseract : tesseract-ocr + tesseract-langpack-fra (Fedora) / tesseract-ocr-fra (Debian/Ubuntu)
+# - pdf2image : poppler-utils (Fedora/Debian/Ubuntu)
+# - argostranslate : installé via pip, télécharge les modèles au premier usage
+# - ctranslate2/sentencepiece : pour NLLB, modèles dans models/nllb-200-distilled-600M-int8/
